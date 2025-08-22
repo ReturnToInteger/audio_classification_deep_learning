@@ -54,12 +54,10 @@ def calc_regions(ids : list,hop_length : float,frame_length : float) -> list[tup
     Each region is defined by the start and end sample indices and the label ID.
     The start and end are calculated based on the hop length and frame length.
     The last region extends to the end of the audio.
-
-    ids: array of frame labels.
-
-    hop_length: number of samples between frames.
-
-    frame_length: number of samples in each frame.
+    Args:
+        ids: array of frame labels.
+        hop_length: number of samples between frames.
+        frame_length: number of samples in each frame.
 
     Returns: list of (start, end, label) tuples in seconds.
     """
@@ -79,9 +77,10 @@ def calc_regions(ids : list,hop_length : float,frame_length : float) -> list[tup
 # Save labels to import in audacity
 def save_audacity_labels(regions, sr, filename):
     """
-    regions: list of (start_sample, end_sample, label) tuples
-    sr: sample rate
-    filename: output .txt path
+    Args:
+        regions: list of (start_sample, end_sample, label) tuples
+        sr: sample rate
+        filename: output .txt path
     """
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w') as f:
@@ -241,26 +240,25 @@ def process_audio_folders(config : argparse.Namespace):
     to the specified output folder. Uses a temporary folder for 
     intermediate data.
 
-    Parameters:
-    ----------
-    config : argparse.Namespace
-        Configuration object containing:
-        - labels: List of labels for classification.
-        - source: Source folder containing audio files. The folder structure should be:
-          - source/
-            - date1/
-              - file1.wav
-              - file2.wav
-            - date2/
-              - file1.wav
-              - file2.wav
-        - output_folder: Folder to save processed results.
-        - file_per_folder: Number of files to process per folder.
-        - batch_size: Batch size for processing audio files.
-        - sample_rate: Sample rate for audio processing.
-        - frame_s: Frame size in seconds.
-        - hop_s: Hop size in seconds.
-        - temp_folder: Temporary folder for intermediate files.
+    Args:
+        config : argparse.Namespace
+            Configuration object containing:
+            - labels: List of labels for classification.
+            - source: Source folder containing audio files. The folder structure should be:
+            - source/
+                - date1/
+                - file1.wav
+                - file2.wav
+                - date2/
+                - file1.wav
+                - file2.wav
+            - output_folder: Folder to save processed results.
+            - file_per_folder: Number of files to process per folder.
+            - batch_size: Batch size for processing audio files.
+            - sample_rate: Sample rate for audio processing.
+            - frame_s: Frame size in seconds.
+            - hop_s: Hop size in seconds.
+            - temp_folder: Temporary folder for intermediate files.
 
     Returns:
     -------
