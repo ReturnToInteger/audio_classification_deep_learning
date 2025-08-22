@@ -49,6 +49,20 @@ python audio_processor.py
 python audio_processor.py --labels "dog bark" "cat meow" "silence" --source "path/to/audio/files" --frame_s 2.0 --hop_s 1.0
 ```
 
+### Evaluating Results
+
+After processing, you can visualize the detection results over time:
+
+```bash
+python eval_script.py --folder "path/to/output/folder"
+```
+
+This evaluation script:
+- Reads all the generated label files (`.txt` files)
+- Groups detections by date and label type
+- Creates a line plot showing duration of each label category over time
+- Helps identify patterns in the audio data (e.g., more pig activity on certain days)
+
 ## Input Structure
 
 The script expects audio files organized in folders:
