@@ -15,7 +15,10 @@ path = args.folder
 data_list=[]
 for txt in get_files(path):
     date=txt.split('_')[1]
-    data= pd.read_csv(os.path.join(path,txt),sep="\t", header=None)
+    filepath=os.path.join(path, txt)
+    if not filepath.endswith(".txt"):
+        continue
+    data= pd.read_csv(filepath,sep="\t", header=None)
     data["date"]=date
     data_list.append(data)
 
