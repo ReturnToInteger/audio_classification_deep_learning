@@ -14,8 +14,8 @@ import argparse
 
 DEFAULT_CONFIG = {
     "labels": ["background noise", "brief peak event, like a clap or click", "pig sneeze", "pig oink"],
-    "source": "E:/Documents/Projects/pig_noises/src/drive/pig_sounds",
-    "output_folder": "src/colab/local/",
+    "source": "ENTER_YOUR_SOURCE_FOLDER_HERE",
+    "output_folder": "content/local/",
     "file_per_folder": 3,
     "batch_size": 70,
     "sample_rate": 16000,
@@ -334,13 +334,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Validate final config
+    validate_config(args)
+
     # Ensure output and temp folders exist
     os.makedirs(args.output_folder, exist_ok=True)
     os.makedirs(args.temp_folder, exist_ok=True)
-
-
-    # Validate final config
-    validate_config(args)
         
     # Ensure output folder exists
     os.makedirs(args.output_folder, exist_ok=True)
