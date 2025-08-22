@@ -102,7 +102,7 @@ This tool is particularly useful for researchers analyzing animal vocalizations,
 
 ## Citation
 
-This project uses the CLAP model. Reference the original work:
+This project uses the CLAP model. Reference of the original work:
 
 **CLAP: Learning Audio Concepts from Natural Language Supervision**  
 Elizalde, B., Deshmukh, S., Al Ismail, M., & Wang, H. (2023). *ICASSP 2023 – IEEE International Conference on Acoustics, Speech and Signal Processing*, 1–5.  
