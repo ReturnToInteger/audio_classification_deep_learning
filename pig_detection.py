@@ -114,8 +114,8 @@ class AudioFrameExtractor:
         self.y, sr = librosa.load(self.input_filepath, sr=self.sr)
     def process_frames(self) -> list[str]:
         """Processes the audio file into frames and saves them to the output folder."""
-        self.frames = librosa.util.frame(self.y, frame_length=self.frame_size, hop_length=self.hop_length)
-        frame_paths=save_frames(self.frames, self.output_folder, self.sr)
+        frames = librosa.util.frame(self.y, frame_length=self.frame_size, hop_length=self.hop_length)
+        frame_paths=save_frames(frames, self.output_folder, self.sr)
         return frame_paths
     def slice_audio(self, start: float, end: float) -> np.ndarray:
         """Slices the audio from start to end time in seconds."""
@@ -187,15 +187,58 @@ def sanitize_filename(name, replace_with="_"):
 
     return re.sub(_illegal_chars, replace_with, name)
 
+def process_single_audio_file_in_batch(clap_model : CLAP, folder : str, file : str, batch_size : int, labels : list[str],
+                                       sample_rate : int, frame_s : float, hop_s : float, out_folder : str, 
+                                       text_embeddings, temp_folder : str):
+    """
+    Process a single audio file, extract frames, compute similarities, and save results.
+    Args:
+        clap_model (CLAP): The CLAP model instance.
+        folder (str): The folder containing the audio file.
+        file (str): The name of the audio file.
+        batch_size (int): Number of frames to process in each batch.
+        labels (list[str]): List of labels for classification.
+        sample_rate (int): Sample rate for audio processing.
+        frame_s (float): Frame size in seconds.
+        hop_s (float): Hop size in seconds.
+        out_folder (str): Output folder to save results.
+        text_embeddings: Precomputed text embeddings for similarity comparison.
+        temp_folder (str): Temporary folder for intermediate files.
+    """
+    extractor=AudioFrameExtractor(os.path.join(folder,file),temp_folder, 
+                                    sr=sample_rate, frame_s=frame_s, hop_s=hop_s)
+    frame_paths=extractor.process_frames()
+    print(f"Framed {file}")
 
-def process_audio(config : argparse.Namespace, save_labels = True, save_audio=True):
+    similarities = batch_process_audio(clap_model, frame_paths, batch_size, text_embeddings)
+
+    label_ids= similarities.argmax(axis=1)
+    regions=calc_regions(label_ids,extractor.hop_length,extractor.frame_size)
+    output_file = os.path.join(out_folder, f"{file}.txt")
+    save_audacity_labels(regions,extractor.sr,output_file)
+    print(f"Labels saved to {output_file}")
+
+    for label_idx, label_name in enumerate(labels):
+        label_path = os.path.join(out_folder, f"{file}_label_{label_idx}.wav")
+        with sf.SoundFile(label_path, 'w', samplerate=extractor.sr, channels=1) as f:
+            for start, end, lbl in regions:
+                if lbl != label_idx:
+                    continue
+                frame_slice = extractor.y[start : end]
+                f.write(frame_slice)
+        print(f"Saved labeled audio for label {label_idx} to {label_path}")
+    
+    del extractor
+    del frame_paths
+
+def process_audio_folders(config : argparse.Namespace):
     """
     Process audio files and extract labeled segments for classification.
 
     Detailed description:
     -------------------
     Splits audio into frames, computes embeddings, and saves results 
-    to the specified output folder. Input is a folder of folders with .wavs inside. Uses a temporary folder for 
+    to the specified output folder. Uses a temporary folder for 
     intermediate data.
 
     Parameters:
@@ -218,11 +261,10 @@ def process_audio(config : argparse.Namespace, save_labels = True, save_audio=Tr
         - frame_s: Frame size in seconds.
         - hop_s: Hop size in seconds.
         - temp_folder: Temporary folder for intermediate files.
-    save_labels : bool, optional
-        If True, saves the labeled segments as Audacity labels. Default is True.
-    save_audio : bool, optional
-        If True, saves the concatenated and labeled audio segments as .wav files. Default is True.
 
+    Returns:
+    -------
+    None
 
     Example:
     -------
@@ -252,34 +294,12 @@ def process_audio(config : argparse.Namespace, save_labels = True, save_audio=Tr
       files_sample=random.sample(files_all,min(config.file_per_folder,len(files_all)))
       for file in files_sample:
         print(f"Processing file: {file}")
-        # Audio extraction
-        extractor=AudioFrameExtractor(os.path.join(folder,file),config.temp_folder, 
-                                      sr=config.sample_rate, frame_s=config.frame_s, hop_s=config.hop_s)
-        frame_paths=extractor.process_frames()
-        print(f"Framed {file}")
+        process_single_audio_file_in_batch(clap_model, folder, file, config.batch_size, config.labels,
+                                           config.sample_rate, config.frame_s, config.hop_s, out_folder, 
+                                           text_embeddings, config.temp_folder)
 
-        similarities = batch_process_audio(clap_model, frame_paths, config.batch_size, text_embeddings)
 
-        label_ids= similarities.argmax(axis=1)
-        regions=calc_regions(label_ids,extractor.hop_length,extractor.frame_size)
-        output_file = os.path.join(out_folder, f"{file}.txt")
-        if save_labels:
-            save_audacity_labels(regions,extractor.sr,output_file)
-            print(f"Labels saved to {output_file}")
 
-        if save_audio:
-            audio_labeled = [[] for _ in range(len(config.labels))]
-            for i, (start, end, label) in enumerate(regions):
-                audio_labeled[label].append(extractor.y[start:end])
-
-            for i in range(len(config.labels)):
-                if not audio_labeled[i]:
-                    continue
-                output_audio_file = os.path.join(out_folder, f"{file}_label_{i}.wav")
-                with sf.SoundFile(output_audio_file, 'w', samplerate=extractor.sr, channels=1) as f:
-                    for s in audio_labeled[i]:
-                        f.write(s)
-                print(f"Saved labeled audio for label {i} to {output_audio_file}")
 
 
 def validate_config(args):
@@ -304,7 +324,6 @@ def validate_config(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audio processing script with defaults from DEFAULT_CONFIG")
-
     parser.add_argument("--labels", nargs="+", default=DEFAULT_CONFIG["labels"], help="List of labels")
     parser.add_argument("--source", default=DEFAULT_CONFIG["source"], help="Source folder")
     parser.add_argument("--output_folder", default=DEFAULT_CONFIG["output_folder"], help="Output folder")
@@ -324,8 +343,8 @@ if __name__ == "__main__":
 
     # Validate final config
     validate_config(args)
-
+        
     # Ensure output folder exists
     os.makedirs(args.output_folder, exist_ok=True)
 
-    process_audio(args)
+    process_audio_folders(args)
