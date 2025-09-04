@@ -49,6 +49,20 @@ python audio_processor.py
 python audio_processor.py --labels "dog bark" "cat meow" "silence" --source "path/to/audio/files" --frame_s 2.0 --hop_s 1.0
 ```
 
+### Evaluating Results
+
+After processing, you can visualize the detection results over time:
+
+```bash
+python eval_script.py --folder "path/to/output/folder"
+```
+
+This evaluation script:
+- Reads all the generated label files (`.txt` files)
+- Groups detections by date and label type
+- Creates a line plot showing duration of each label category over time
+- Helps identify patterns in the audio data (e.g., more pig activity on certain days)
+
 ## Input Structure
 
 The script expects audio files organized in folders:
@@ -88,7 +102,7 @@ This tool is particularly useful for researchers analyzing animal vocalizations,
 
 ## Citation
 
-This project uses the CLAP model. Reference the original work:
+This project uses the CLAP model. Reference to the original work:
 
 **CLAP: Learning Audio Concepts from Natural Language Supervision**  
 Elizalde, B., Deshmukh, S., Al Ismail, M., & Wang, H. (2023). *ICASSP 2023 – IEEE International Conference on Acoustics, Speech and Signal Processing*, 1–5.  
