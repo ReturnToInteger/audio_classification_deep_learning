@@ -11,6 +11,8 @@ import matplotlib
 matplotlib.use('QtAgg')
 import random
 import argparse
+import torch
+print(torch.__version__)
 
 DEFAULT_CONFIG = {
     "labels": ["background noise", "brief peak event, like a clap or click", "pig sneeze", "pig oink"],
@@ -122,7 +124,7 @@ class AudioFrameExtractor:
         end_sample = int(end * self.sr)
         return self.y[start_sample:end_sample]
 
-def batch_process_audio(model : CLAP, file_paths : list[str], batch_size : int, text_embeddings):
+def batch_compute_similarity(model : CLAP, file_paths : list[str], batch_size : int, text_embeddings):
     """
     From a list of audio file paths, compute the similarity with text embeddings in batches.
     Args:
@@ -134,14 +136,18 @@ def batch_process_audio(model : CLAP, file_paths : list[str], batch_size : int, 
         np.ndarray: A 2D array of similarities with shape (num_frames, num_text_embeddings).
     """
     similarities=[]
+    text_embeddings = text_embeddings / torch.norm(text_embeddings, dim=-1, keepdim=True)
+    logit_scale = model.clap.logit_scale.exp()
+
     for j,i in enumerate(range(0, len(file_paths), batch_size)):
         batch_paths = file_paths[i:i+batch_size]
         audio_embeddings = model.get_audio_embeddings(batch_paths)
+        audio_embeddings = audio_embeddings/torch.norm(audio_embeddings, dim=-1, keepdim=True)
         # Compute similarity between audio and text embeddings
-        sim=model.compute_similarity(audio_embeddings, text_embeddings)
+        sim=logit_scale*text_embeddings @ audio_embeddings.T
         similarities.append(sim.cpu().detach().numpy())
         print(f"{j}: {similarities[j].min()}, {similarities[j].max()}")
-    return np.vstack(similarities)
+    return np.hstack(similarities).T
 
 def get_folders(path):
     """Return a list of folder names in the given path."""
@@ -209,8 +215,10 @@ def process_single_audio_file_in_batch(clap_model : CLAP, folder : str, file : s
     frame_paths=extractor.process_frames()
     print(f"Framed {file}")
 
-    similarities = batch_process_audio(clap_model, frame_paths, batch_size, text_embeddings)
+    similarities = batch_compute_similarity(clap_model, frame_paths, batch_size, text_embeddings)
 
+    if similarities.shape[1]!= len(labels):
+        raise ValueError(f"Expected similarity shape (_, {len(labels)}), but got {similarities.shape}")
     label_ids= similarities.argmax(axis=1)
     regions=calc_regions(label_ids,extractor.hop_length,extractor.frame_size)
     output_file = os.path.join(out_folder, f"{file}.txt")
